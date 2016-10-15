@@ -9,6 +9,9 @@
   <body>
     <h1>Drag And Drop</h1>
     <div id="dropzone">
+      <div id="error">
+      </div>
+
       <div id="prompt">
         <label for="form">Click</label> or drag to upload
         <input id="form" type="file" multiple/>
@@ -17,6 +20,14 @@
       <div id="uploads">
       </div>
     </div>
+
+    <!-- template for information about the status of each upload -->
+    <template id="info">
+      <p id="details"></p>
+      <div class="progress">
+        <div id="progress" class="progress-inner"></div>
+      </div>
+    </template>
 
     <script src="script.js"></script>
   </body>

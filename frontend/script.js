@@ -1,8 +1,11 @@
 // The real meaning of DnD is drag and drop.
+
 var dropzone = document.getElementById("dropzone");
 var form = document.getElementById("form");
 var uploads = document.getElementById("uploads");
+var infoTemplate = document.getElementById("info");
 
+// Handle UI Updates
 function addEventsListener(element, events, func, prop) {
 	events.forEach((e) => element.addEventListener(e, func, prop));
 }
@@ -32,26 +35,49 @@ function handleFiles(files) {
 
 	var i = 0;
 	for (let file of files) {
+		// Create Form
 		let form = new FormData();
 		form.set("file", file, file.name);
 
-		let status = document.createElement("div");
-		status.id = i;
-		status.textContent = `${file.name} - 0%`;
-		uploads.appendChild(status);
+		// Display Status Info
+		let localInfoTemplate = document.importNode(infoTemplate.content, true);
+		localInfoTemplate.id = i;
 
+		let progress = localInfoTemplate.getElementById("progress");
+		let status = localInfoTemplate.getElementById("details");
+		status.textContent = `${file.name} - 0%`;
+
+		uploads.appendChild(localInfoTemplate);
+
+		// Prepare Request
 		let xhr = new XMLHttpRequest();
-		xhr.open('POST', '/send');
-		xhr.onload = () => console.log("Status: ", xhr.status, xhr.responseText);
-		xhr.onerror = () => console.error("XHR Error");
-		xhr.upload.onprogress = (event) => {
-			if (event.lengthComputable) {
-				var percent = Math.round((event.loaded / event.total) * 100);
-				let old = status.textContent.split(" - ");
-				old[old.length - 1] = `${percent}%`
-				status.textContent = old.join(" - ");
+		xhr.addEventListener('load', (event) => {
+			if (status < 200 || status >= 300) {
+				// Bad Things Have Happened
+				// TODO: Handle
 			}
-		}
+
+			console.log("Status: ", xhr.status, xhr.responseText);
+		});
+		xhr.upload.addEventListener('progress', (event) => {
+			// TODO: Download Speed
+			// TODO: Done State
+
+			let old = status.textContent.split(" - ");
+			if (event.lengthComputable) {
+				// Update Progress
+				var progressString = `${Math.round((event.loaded / event.total) * 100)}%`;
+				old[1] = progressString;
+				progress.style.setProperty("width", progressString);
+			} else {
+				// Remove Progress
+				old.splice(1, 1);
+			}
+			status.textContent = old.join(" - ");
+		});
+
+		// Send Request
+		xhr.open('POST', '/send');
 		xhr.send(form);
 	}
 }
