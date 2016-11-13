@@ -34,7 +34,7 @@ func main() {
 	mux.HandleFunc("/send", func(rw http.ResponseWriter, r *http.Request) {
 		inFile, header, err := r.FormFile("file")
 		if err != nil {
-			log.Printf(color.RedString("Failed to parse file: %%v"), err)
+			log.Printf(color.RedString("Failed to parse file: %v"), err)
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -43,19 +43,19 @@ func main() {
 		outFile, err := os.Create(header.Filename)
 		defer outFile.Close()
 		if err != nil {
-			log.Printf(color.RedString("Failed to create file: %%v"), err)
+			log.Printf(color.RedString("Failed to create file: %v"), err)
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		written, err := io.Copy(outFile, inFile)
 		if err != nil {
-			log.Printf(color.RedString("Failed to copy file: %%v"), err)
+			log.Printf(color.RedString("Failed to copy file: %v"), err)
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		log.Printf(
-			"Wrote "+color.CyanString("%%d")+" bytes to "+color.CyanString("%%s"),
+			"Wrote "+color.CyanString("%d")+" bytes to "+color.CyanString("%s"),
 			written, outFile.Name())
 	})
 
@@ -66,7 +66,7 @@ func main() {
 
 	err := os.Chdir(*path)
 	if err != nil {
-		log.Printf(color.RedString("Failed to change to %%s, %%v"), *path, err)
+		log.Printf(color.RedString("Failed to change to %s, %v"), *path, err)
 		return
 	}
 

@@ -5,31 +5,22 @@ html, body {
 }
 
 body {
-	display: flex;
-	flex-direction: column;
-
-	position: absolute;
+	padding: 1em 0;
 	width: 100%;
-	height: 100%;
+	transition: 0.3s box-shadow ease-in-out;
 }
 
 label {
 	text-decoration: underline;
 }
 
-#dropzone {
-	transition: box-shadow 0.3s ease-in-out;
-	height: 100%;
-	margin: 1em;
-	border: 1px solid black;
-
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
+body.dragover {
+	box-shadow: 0 0 10px 10px #eee inset
 }
 
-#dropzone.dragover {
-	box-shadow: 0 0 5px 0 #888;
+hr {
+	width: 50%;
+	margin: 1.5em auto;
 }
 
 #dropzone.uploading > #prompt {
@@ -64,4 +55,21 @@ label {
 	height: 100%;
 	background-size: 40px 40px;
 	transition: width 0.3s linear;
+}
+
+.progress-inner.active {
+	animation: 5s transform-background linear infinite reverse;
+}
+
+.progress-inner.error {
+	background: red;
+}
+
+@keyframes transform-background {
+	from {
+		background-position-x: 0;
+	}
+	to {
+		background-position-x: 100%;
+	}
 }

@@ -1,9 +1,11 @@
 // The real meaning of DnD is drag and drop.
 
-var dropzone = document.getElementById("dropzone");
+var dropzone = document.body;
+
 var form = document.getElementById("form");
 var uploads = document.getElementById("uploads");
 var infoTemplate = document.getElementById("info");
+var errors = document.getElementById("error");
 
 // Handle UI Updates
 function addEventsListener(element, events, func, prop) {
@@ -52,16 +54,17 @@ function handleFiles(files) {
 		// Prepare Request
 		let xhr = new XMLHttpRequest();
 		xhr.addEventListener('load', (event) => {
-			if (status < 200 || status >= 300) {
-				// Bad Things Have Happened
-				// TODO: Handle
-			}
-
 			console.log("Status: ", xhr.status, xhr.responseText);
+			progress.classList.remove("active");
 		});
+
+		xhr.addEventListener('error', (event) => {
+			progress.classList.add("error");
+			status.textContent += " - Something went wrong.";
+		});
+
 		xhr.upload.addEventListener('progress', (event) => {
 			// TODO: Download Speed
-			// TODO: Done State
 
 			let old = status.textContent.split(" - ");
 			if (event.lengthComputable) {
