@@ -1,3 +1,4 @@
+//go:generate rice embed-go
 package main
 
 import (

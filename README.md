@@ -16,6 +16,8 @@ Get
 
     go get github.com/caffinatedmonkey/dnd
 
+[or download the latest release (you don't need go to run it)][latest]
+
 Run
 
     dnd
@@ -28,7 +30,8 @@ Build
 If building an stand alone binary for distribution, the static assets must be
 packaged.
 
-    rice embed-go
+    go generate
     go build
 
 [demo]: https://caffinatedmonkey.github.io/dnd/demo.gif
+[latest]: https://github.com/caffinatedmonkey/dnd/releases
