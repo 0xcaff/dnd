@@ -3,11 +3,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/GeertJohan/go.rice"
 	"github.com/fatih/color"
@@ -52,58 +52,90 @@ func main() {
 	mux.HandleFunc("/send", func(rw http.ResponseWriter, r *http.Request) {
 		disableProgress := *disableProgress
 
-		// TODO: Progress only reports the file being flushed out of
-		// memory/temp files after transfer is complete.
-
-		var length int
-		if !disableProgress {
-			var err error
-			lengthString := r.FormValue("length")
-			length, err = strconv.Atoi(lengthString)
-			if err != nil {
-				// Client didn't supply length. Don't use it.
-				disableProgress = true
-			}
-		}
-
-		inFile, header, err := r.FormFile("file")
-		defer inFile.Close()
+		reader, err := r.MultipartReader()
 		if err != nil {
-			log.Printf(color.RedString("Failed to parse file: %v"), err)
+			log.Printf(color.RedString("Failed to read form: %v"), err)
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		outFile, err := os.Create(header.Filename)
-		defer outFile.Close()
-		if err != nil {
-			log.Printf(color.RedString("Failed to create file: %v"), err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		parsedLength := false
+		parsedFile := false
+		length := 0
 
-		var writer io.Writer
-		if !disableProgress {
-			updateBar := bars.MakeBar(length, header.Filename)
-			writer = &ProgressWriter{
-				BytesWritten: 0,
-				Callback:     updateBar,
-				Writer:       outFile,
+		// TODO: Bound this
+		for {
+			part, err := reader.NextPart()
+
+			if err != nil && err == io.EOF {
+				// No more parts.
+				break
 			}
-		} else {
-			writer = outFile
-		}
 
-		written, err := io.Copy(writer, inFile)
-		if err != nil {
-			log.Printf(color.RedString("Failed to copy file: %v"), err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+			if err != nil {
+				log.Printf(color.RedString("Failed to read part: %v"), err)
+				rw.WriteHeader(http.StatusBadRequest)
+				continue
+			}
 
-		// log.Printf(
-		// 	"Wrote "+color.CyanString("%d")+" bytes to "+color.CyanString("%s"),
-		// 	written, outFile.Name())
+			// https://xhr.spec.whatwg.org/#interface-formdata
+			// FormData should be sent in order.
+
+			partName := part.FormName()
+
+			if partName == "length" && !disableProgress && !parsedLength {
+				_, err = fmt.Fscanf(part, "%d", &length)
+				if err != nil {
+					log.Printf(color.RedString("Failed to read length: %v"), err)
+					disableProgress = true
+				} else if length < 0 {
+					log.Printf(color.RedString("Invalid length: %d"), err)
+					disableProgress = true
+				} else {
+					parsedLength = true
+				}
+			} else if partName == "file" && !parsedFile {
+				fileName := part.FileName()
+
+				outFile, err := os.Create(fileName)
+				defer outFile.Close()
+				if err != nil {
+					log.Printf(color.RedString("Failed to create file: %v"), err)
+					rw.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				var writer io.Writer
+				if parsedLength {
+					updateBar := bars.MakeBar(length, fileName)
+					writer = &ProgressWriter{
+						BytesWritten: 0,
+						Callback:     updateBar,
+						Writer:       outFile,
+					}
+				} else {
+					writer = outFile
+				}
+
+				written, err := io.Copy(writer, part)
+				if err != nil {
+					log.Printf(color.RedString("Failed to copy file: %v"), err)
+					rw.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				log.Printf(
+					"Wrote "+color.CyanString("%d")+" bytes to "+color.CyanString("%s"),
+					written, outFile.Name())
+			} else {
+				// If we get here, there has been some invalid form properties.
+			}
+
+			part.Close()
+			part.Close()
+			part.Close()
+			part.Close()
+		}
 	})
 
 	s := &http.Server{

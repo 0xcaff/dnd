@@ -39,8 +39,8 @@ function handleFiles(files) {
 	for (let file of files) {
 		// Create Form
 		let form = new FormData();
-		form.set("file", file, file.name);
 		form.set("length", file.size);
+		form.set("file", file, file.name);
 
 		// Display Status Info
 		let localInfoTemplate = document.importNode(infoTemplate.content, true);
