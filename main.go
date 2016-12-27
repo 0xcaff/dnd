@@ -8,10 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/GeertJohan/go.rice"
 	"github.com/fatih/color"
-	"github.com/sethgrid/multibar"
+	"github.com/gosuri/uiprogress"
 )
 
 var (
@@ -21,7 +22,7 @@ var (
 	disableProgress = flag.Bool("no-progress", false, "Disable progress bars.")
 )
 
-// TODO: Print with bars if needed.
+var bars *uiprogress.Progress
 
 func main() {
 	flag.Parse()
@@ -29,16 +30,10 @@ func main() {
 		color.NoColor = true
 	}
 
-	// Setup progress bar
-	var bars *multibar.BarContainer
+	// Setup progress bars
 	if !*disableProgress {
-		var err error
-		bars, err = multibar.New()
-		if err != nil {
-			log.Printf(color.RedString("Failed to initialize progress bars %v"), err)
-			return
-		}
-		go bars.Listen()
+		bars = uiprogress.New()
+		bars.Start()
 	}
 
 	// Setup Server
@@ -63,7 +58,6 @@ func main() {
 		parsedFile := false
 		length := 0
 
-		// TODO: Bound this
 		for {
 			part, err := reader.NextPart()
 
@@ -107,13 +101,20 @@ func main() {
 
 				var writer io.Writer
 				if parsedLength {
-					updateBar := bars.MakeBar(length, fileName)
-					writer = &ProgressWriter{
+					bar := bars.AddBar(length)
+					progWriter := &ProgressWriter{
+						Length:       length,
+						FileName:     fileName,
 						BytesWritten: 0,
-						Callback:     updateBar,
+						Bar:          bar,
 						Writer:       outFile,
 					}
+					bar.AppendFunc(progWriter.Append())
+					bar.PrependFunc(progWriter.Prepend())
+
+					writer = progWriter
 				} else {
+					log.Printf("Writing "+color.CyanString("%s"), fileName)
 					writer = outFile
 				}
 
@@ -124,16 +125,15 @@ func main() {
 					return
 				}
 
-				log.Printf(
-					"Wrote "+color.CyanString("%d")+" bytes to "+color.CyanString("%s"),
-					written, outFile.Name())
+				if !parsedLength {
+					log.Printf(
+						"Wrote "+color.CyanString("%s")+" to "+color.CyanString("%s"),
+						byteUnitStr(int(written)), outFile.Name())
+				}
 			} else {
-				// If we get here, there has been some invalid form properties.
+				log.Printf(color.CyanString("%s")+" sent invalid request", r.RemoteAddr)
 			}
 
-			part.Close()
-			part.Close()
-			part.Close()
 			part.Close()
 		}
 	})
@@ -156,14 +156,58 @@ func main() {
 }
 
 type ProgressWriter struct {
+	Length       int
+	FileName     string
 	BytesWritten int
-	Callback     func(progress int)
+	Bar          *uiprogress.Bar
 	io.Writer
 }
 
 func (writer *ProgressWriter) Write(bytes []byte) (int, error) {
+	bars.RefreshInterval = time.Millisecond * 300
+
 	n, err := writer.Writer.Write(bytes)
 	writer.BytesWritten += n
-	writer.Callback(writer.BytesWritten)
+	writer.Bar.Set(writer.BytesWritten)
+
+	if err == io.EOF {
+		// Slow down, end of a progress bar.
+		bars.RefreshInterval = time.Second * 10
+	}
+
 	return n, err
+}
+
+func (writer *ProgressWriter) Prepend() func(*uiprogress.Bar) string {
+	return func(bar *uiprogress.Bar) string {
+		return writer.FileName
+	}
+}
+
+func (writer *ProgressWriter) Append() func(*uiprogress.Bar) string {
+	total := byteUnitStr(writer.Length)
+
+	return func(bar *uiprogress.Bar) string {
+		completed := byteUnitStr(writer.BytesWritten)
+		return bar.CompletedPercentString() + " " + completed + "/" + total
+	}
+}
+
+// TODO: What abotu files over 4GB?
+var byteUnits = []string{"B", "KB", "MB", "GB", "TB", "PB"}
+
+// https://github.com/mitchellh/ioprogress/blob/master/draw.go#L91
+func byteUnitStr(n int) string {
+	var unit string
+	size := float64(n)
+	for i := 1; i < len(byteUnits); i++ {
+		if size < 1000 {
+			unit = byteUnits[i-1]
+			break
+		}
+
+		size = size / 1000
+	}
+
+	return fmt.Sprintf("%.3g %s", size, unit)
 }
