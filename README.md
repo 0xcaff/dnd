@@ -33,5 +33,5 @@ packaged.
     go generate
     go build
 
-[demo]: https://caffinatedmonkey.github.io/dnd/demo.gif
+[demo]: https://caffinatedmonkey.github.io/dnd/demo-progress.gif
 [latest]: https://github.com/caffinatedmonkey/dnd/releases
