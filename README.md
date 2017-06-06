@@ -14,7 +14,7 @@ Usage
 
 Get
 
-    go get github.com/caffinatedmonkey/dnd
+    go get github.com/0xcaff/dnd
 
 [or download the latest release (you don't need go to run it)][latest]
 
@@ -33,5 +33,5 @@ packaged.
     go generate
     go build
 
-[demo]: https://caffinatedmonkey.github.io/dnd/demo-progress.gif
-[latest]: https://github.com/caffinatedmonkey/dnd/releases
+[demo]: https://0xcaff.github.io/dnd/demo-progress.gif
+[latest]: https://github.com/0xcaff/dnd/releases
