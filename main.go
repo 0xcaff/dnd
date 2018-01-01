@@ -17,7 +17,7 @@ import (
 
 var (
 	listen          = flag.String("listen", ":8080", "The address to run the web service on.")
-	path            = flag.String("path", ".", "The path files are saved to.")
+	path            = flag.String("path", ".", "The path files are saved to. The file name is provided by the client.")
 	disableColor    = flag.Bool("no-color", false, "Disable color output.")
 	disableProgress = flag.Bool("no-progress", false, "Disable progress bars.")
 )
@@ -45,96 +45,43 @@ func main() {
 
 	// Handle form posts
 	mux.HandleFunc("/send", func(rw http.ResponseWriter, r *http.Request) {
-		disableProgress := *disableProgress
+		defer r.Body.Close()
 
-		reader, err := r.MultipartReader()
-		if err != nil {
-			log.Printf(color.RedString("Failed to read form: %v"), err)
+		fileName := r.Header.Get("X-File-Name")
+		if fileName == "" {
+			log.Printf(color.RedString("File name not provided"))
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		parsedLength := false
-		parsedFile := false
-		length := 0
+		outFile, err := os.Create(fileName)
+		defer outFile.Close()
+		if err != nil {
+			log.Printf(color.RedString("Failed to create file: %v"), err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-		for {
-			part, err := reader.NextPart()
+		bar := bars.AddBar(int(r.ContentLength))
+		progWriter := &ProgressWriter{
+			Length:       r.ContentLength,
+			FileName:     fileName,
+			BytesWritten: 0,
+			Bar:          bar,
+			Writer:       outFile,
+		}
+		bar.AppendFunc(progWriter.Append())
+		bar.PrependFunc(progWriter.Prepend())
 
-			if err != nil && err == io.EOF {
-				// No more parts.
-				break
-			}
+		written, err := io.Copy(progWriter, r.Body)
+		if err != nil {
+			log.Printf(color.RedString("Failed to copy file: %v"), err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-			if err != nil {
-				log.Printf(color.RedString("Failed to read part: %v"), err)
-				rw.WriteHeader(http.StatusBadRequest)
-				continue
-			}
-
-			// https://xhr.spec.whatwg.org/#interface-formdata
-			// FormData should be sent in order.
-
-			partName := part.FormName()
-
-			if partName == "length" && !disableProgress && !parsedLength {
-				_, err = fmt.Fscanf(part, "%d", &length)
-				if err != nil {
-					log.Printf(color.RedString("Failed to read length: %v"), err)
-					disableProgress = true
-				} else if length < 0 {
-					log.Printf(color.RedString("Invalid length: %d"), err)
-					disableProgress = true
-				} else {
-					parsedLength = true
-				}
-			} else if partName == "file" && !parsedFile {
-				fileName := part.FileName()
-
-				outFile, err := os.Create(fileName)
-				defer outFile.Close()
-				if err != nil {
-					log.Printf(color.RedString("Failed to create file: %v"), err)
-					rw.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-
-				var writer io.Writer
-				if parsedLength {
-					bar := bars.AddBar(length)
-					progWriter := &ProgressWriter{
-						Length:       length,
-						FileName:     fileName,
-						BytesWritten: 0,
-						Bar:          bar,
-						Writer:       outFile,
-					}
-					bar.AppendFunc(progWriter.Append())
-					bar.PrependFunc(progWriter.Prepend())
-
-					writer = progWriter
-				} else {
-					log.Printf("Writing "+color.CyanString("%s"), fileName)
-					writer = outFile
-				}
-
-				written, err := io.Copy(writer, part)
-				if err != nil {
-					log.Printf(color.RedString("Failed to copy file: %v"), err)
-					rw.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-
-				if !parsedLength {
-					log.Printf(
-						"Wrote "+color.CyanString("%s")+" to "+color.CyanString("%s"),
-						byteUnitStr(int(written)), outFile.Name())
-				}
-			} else {
-				log.Printf(color.CyanString("%s")+" sent invalid request", r.RemoteAddr)
-			}
-
-			part.Close()
+		if *disableProgress {
+			log.Printf("Wrote "+color.CyanString("%d")+" bytes to file "+color.CyanString("%s"), written, fileName)
 		}
 	})
 
@@ -156,9 +103,9 @@ func main() {
 }
 
 type ProgressWriter struct {
-	Length       int
+	Length       int64
 	FileName     string
-	BytesWritten int
+	BytesWritten int64
 	Bar          *uiprogress.Bar
 	io.Writer
 }
@@ -167,8 +114,8 @@ func (writer *ProgressWriter) Write(bytes []byte) (int, error) {
 	bars.RefreshInterval = time.Millisecond * 300
 
 	n, err := writer.Writer.Write(bytes)
-	writer.BytesWritten += n
-	writer.Bar.Set(writer.BytesWritten)
+	writer.BytesWritten += int64(n)
+	writer.Bar.Set(int(writer.BytesWritten))
 
 	if err == io.EOF {
 		// Slow down, end of a progress bar.
@@ -193,11 +140,10 @@ func (writer *ProgressWriter) Append() func(*uiprogress.Bar) string {
 	}
 }
 
-// TODO: What abotu files over 4GB?
 var byteUnits = []string{"B", "KB", "MB", "GB", "TB", "PB"}
 
 // https://github.com/mitchellh/ioprogress/blob/master/draw.go#L91
-func byteUnitStr(n int) string {
+func byteUnitStr(n int64) string {
 	var unit string
 	size := float64(n)
 	for i := 1; i < len(byteUnits); i++ {

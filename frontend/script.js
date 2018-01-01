@@ -37,11 +37,6 @@ function handleFiles(files) {
 
 	var i = 0;
 	for (let file of files) {
-		// Create Form
-		let form = new FormData();
-		form.set("length", file.size);
-		form.set("file", file, file.name);
-
 		// Display Status Info
 		let localInfoTemplate = document.importNode(infoTemplate.content, true);
 		localInfoTemplate.id = i;
@@ -82,7 +77,8 @@ function handleFiles(files) {
 
 		// Send Request
 		xhr.open('POST', '/send');
-		xhr.send(form);
+		xhr.setRequestHeader('X-File-Name', file.name);
+		xhr.send(file);
 	}
 }
 
