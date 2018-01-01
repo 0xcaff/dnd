@@ -1,6 +1,8 @@
 DnD
 ===
 
+[![Build Status][build-status-image]][build-status]
+
 A file transfer tool.
 
 Demo
@@ -35,3 +37,6 @@ packaged.
 
 [demo]: https://0xcaff.github.io/dnd/demo-progress.gif
 [latest]: https://github.com/0xcaff/dnd/releases
+
+[build-status-image]: https://travis-ci.org/0xcaff/dnd.svg?branch=master
+[build-status]: https://travis-ci.org/0xcaff/dnd
