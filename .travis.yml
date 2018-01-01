@@ -1,0 +1,30 @@
+language: go
+go:
+  - stable
+
+install:
+  - go get ./...
+  - go get github.com/GeertJohan/go.rice/rice
+
+script:
+  - go generate
+  - go build
+
+before_deploy:
+  - GOOS=darwin  GOARCH=386 go build -o ./dnd.darwin.386
+  - GOOS=linux   GOARCH=386 go build -o ./dnd.linux.386
+  - GOOS=linux   GOARCH=arm go build -o ./dnd.linux.arm
+  - GOOS=windows GOARCH=386 go build -o ./dnd.windows.386
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "ztUnTfVP6ijIUh0X+Se2+gx9UTcI6Pg+9nIyHCQm2JvwFfMqQRdD8C/lCEQyRc9pkzzXubZgWMCGcc+Tn/S91/z9loORJHR4rVGHtjrWsgcZ4woFuCTZxabYQnRZrKBE7VMpUQky0G1xh4oH8gR3WmQ3Y6gpjaHPKCpyF42RJJgWBgR23+CExNTE0oN0tA59Bn45U0qG8aSZCKOIDuoHj46tEVjFL4NucAHiiYvCk7iV/9EhGg5wGKNTP2/VpfLxaCITkp73s0c6OvhRGyjvAVFdzpM6LcdV4gGFUTaWygfU9F/H1xDTTKt0Dwv0CJPBmzB76ypPbnhxK6bQXnVbdSFi2tyMkceQgV0NLiRGq91F6y0eqdTBhOtfzHpFwb+HdRpmerPi+B3LEseiutEKINreSdpdHPJCaC1UMl6FWVaJNQRd2FK05Hfwe6wbyfd/WnwuEzN+soz2UPFbzwPDCFGQSrHzzuKgYArUY/wEHjtd4ffkTMY2JKV2W4C40AvdkcRuG+bLRMeMQYBzyCxTE8dIJ9jInM6wRwJl3P6xq+yRJ3LhlDTGJfpvT6ZfEXyBeWBORQyn7OcW6TMnoVAjPCrbGhJxzIRjjNPq63/vCwp7V4Kdl18NM9MmzQrdPuOVsQS1Ul2ZUae+/lCOttdn6LEpZzj6vK8TbUMQ42S9teo="
+  skip_cleanup: true
+  file:
+    - ./dnd.darwin.386
+    - ./dnd.linux.386
+    - ./dnd.linux.arm
+    - ./dnd.windows.386
+  on:
+    tags: true
