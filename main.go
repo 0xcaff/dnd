@@ -193,7 +193,7 @@ func (writer *ProgressWriter) Append() func(*uiprogress.Bar) string {
 	}
 }
 
-// TODO: What abotu files over 4GB?
+// TODO: What about files over 4GB?
 var byteUnits = []string{"B", "KB", "MB", "GB", "TB", "PB"}
 
 // https://github.com/mitchellh/ioprogress/blob/master/draw.go#L91
@@ -201,12 +201,12 @@ func byteUnitStr(n int) string {
 	var unit string
 	size := float64(n)
 	for i := 1; i < len(byteUnits); i++ {
-		if size < 1000 {
+		if size < 1024 {
 			unit = byteUnits[i-1]
 			break
 		}
 
-		size = size / 1000
+		size = size / 1024
 	}
 
 	return fmt.Sprintf("%.3g %s", size, unit)
